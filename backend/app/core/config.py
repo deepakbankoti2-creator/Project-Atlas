@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "600"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
 
+    # Security & API Key Authentication
+    ATLAS_API_KEY: str = os.getenv("ATLAS_API_KEY", "atlas_secret_token_2025")
+    ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", os.getenv("ATLAS_ADMIN_API_KEY", "atlas_admin_secret_key_2025"))
+
+    # Operational Timeouts
+    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "10.0"))
+    REQUEST_TIMEOUT_SECONDS: float = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30.0"))
+
     @property
     def database_url(self) -> str:
         """Construct the SQLAlchemy connection URL with safely encoded password."""

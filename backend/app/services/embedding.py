@@ -38,7 +38,7 @@ class OllamaEmbeddingService:
         self,
         base_url: str = settings.OLLAMA_BASE_URL,
         model: str = settings.OLLAMA_EMBED_MODEL,
-        timeout: float = 3.0
+        timeout: float = settings.OLLAMA_TIMEOUT_SECONDS
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model

@@ -15,10 +15,19 @@ from backend.app.services.retrieval import SecureRAGService, RetrievalResponse, 
 logger = logging.getLogger(__name__)
 
 
+from pydantic import BaseModel, Field
+
+
 class Citation(BaseModel):
+    model_config = {"populate_by_name": True}
     report_id: str
-    title: str
-    page_number: int
+    page: int = Field(default=1, alias="page_number")
+    quote: Optional[str] = ""
+    title: Optional[str] = ""
+
+    @property
+    def page_number(self) -> int:
+        return self.page
 
 
 class RAGAnswerResponse(BaseModel):
@@ -54,7 +63,7 @@ class RAGGeneratorService:
         retrieval_service: Optional[SecureRAGService] = None,
         base_url: str = settings.OLLAMA_BASE_URL,
         chat_model: str = settings.OLLAMA_CHAT_MODEL,
-        timeout: float = 30.0
+        timeout: float = settings.OLLAMA_TIMEOUT_SECONDS
     ):
         self.retrieval_service = retrieval_service or default_rag_service
         self.base_url = base_url.rstrip("/")
@@ -186,7 +195,8 @@ class RAGGeneratorService:
                 citations.append(Citation(
                     report_id=p.report_id,
                     title=p.title,
-                    page_number=p.page_number
+                    page_number=p.page_number,
+                    quote=p.text[:150].strip()
                 ))
 
         # 3. Formulate LLM prompt

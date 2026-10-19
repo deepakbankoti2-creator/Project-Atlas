@@ -160,3 +160,8 @@ class EntitlementService:
         finally:
             if should_close and db is not None:
                 db.close()
+
+
+entitlement_service = EntitlementService()
+get_client_entitlements = EntitlementService.get_client_entitlement
+

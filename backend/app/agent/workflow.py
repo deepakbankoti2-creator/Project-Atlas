@@ -282,7 +282,12 @@ class AtlasAgentWorkflow:
                 for a in d.get("assumptions", []):
                     answer_parts.append(f"• {a}")
                 
-                citations.append(Citation(report_id="R-101", title="Global Smart Water Meter Market 2025", page_number=8))
+                citations.append(Citation(
+                    report_id="R-101",
+                    title="Global Smart Water Meter Market 2025",
+                    page_number=8,
+                    quote="2024 global market size stood at USD 4.21 billion with 11.2% CAGR (2025-2030)."
+                ))
 
             return {
                 "answer": "\n".join(answer_parts),
@@ -339,7 +344,12 @@ class AtlasAgentWorkflow:
             key = (p.report_id, p.page_number)
             if key not in seen_keys:
                 seen_keys.add(key)
-                citations.append(Citation(report_id=p.report_id, title=p.title, page_number=p.page_number))
+                citations.append(Citation(
+                    report_id=p.report_id,
+                    title=p.title,
+                    page_number=p.page_number,
+                    quote=p.text[:150].strip()
+                ))
 
         # Handle escalation message
         if state.get("escalated"):
