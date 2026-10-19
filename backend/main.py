@@ -16,8 +16,10 @@ import logging
 from typing import Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from pathlib import Path
 
 from backend.app.api.v1.endpoints import router as api_router
 from backend.app.core.config import settings
@@ -88,14 +90,27 @@ app.include_router(api_router, prefix="/api/v1", tags=["API v1"])
 app.include_router(api_router, tags=["Root Endpoints"])
 
 
+PORTAL_HTML_PATH = Path(__file__).parent / "app" / "templates" / "portal.html"
+
+
+@app.get("/portal", response_class=HTMLResponse, tags=["Web Portal"])
+def get_portal():
+    """Serves the interactive, responsive Report Copilot web interface."""
+    if PORTAL_HTML_PATH.exists():
+        return HTMLResponse(content=PORTAL_HTML_PATH.read_text(encoding="utf-8"))
+    return HTMLResponse("<h3>Report Copilot Portal template not found.</h3>", status_code=404)
+
+
 @app.get("/", tags=["Info"])
 def root():
     return {
         "project": "Project Atlas — AI Software Developer / Report Copilot",
         "version": "1.0.0",
         "status": "operational",
+        "web_portal": "/portal",
         "docs_url": "/docs",
         "endpoints": {
+            "portal": "/portal",
             "health": "/health",
             "chat": "/chat",
             "ingest": "/ingest",
