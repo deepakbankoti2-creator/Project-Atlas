@@ -11,18 +11,21 @@ logger = logging.getLogger(__name__)
 
 # Common injection patterns in user questions or retrieved document traps
 INJECTION_PATTERNS = [
-    r"disregard\s+(all\s+)?(previous|prior)\s+instructions",
-    r"ignore\s+(all\s+)?(previous|prior)\s+instructions",
-    r"note\s+to\s+ai\s+systems?",
+    r"disregard\s+(all\s+)?(previous\s+|prior\s+)?instructions",
+    r"ignore\s+(all\s+)?(previous\s+|prior\s+)?instructions",
+    r"note\s+to\s+ai(\s+systems?)?",
     r"(print|list|show|display|reveal|dump)\s+(the\s+)?(all\s+)?(full\s+)?(contents\s+of\s+)?(the\s+)?clients?",
     r"(print|list|show|reveal|give\s+me)\s+(all\s+)?(client\s+)?emails?",
+    r"(print|list|show|reveal|dump|output)\s+(all\s+)?(user\s+)?passwords?",
     r"follow\s+(the\s+)?instructions\s+in",
     r"reveal\s+(your\s+)?(system\s+)?prompt",
     r"bypass\s+permissions?",
     r"delete\s+(all\s+)?(the\s+)?rows",
     r"drop\s+table",
-    r"override\s+(all\s+)?rules"
+    r"override\s+(all\s+)?rules",
+    r"system\s+override"
 ]
+
 
 
 class SecurityGuard:

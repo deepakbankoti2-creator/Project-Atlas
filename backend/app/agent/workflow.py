@@ -30,6 +30,8 @@ class WorkflowOutput(BaseModel):
     escalated: bool
     escalation_ticket_id: Optional[str] = None
     route: str
+    conversation_id: Optional[int] = None
+
 
 
 # State schema for LangGraph
@@ -303,20 +305,33 @@ class AtlasAgentWorkflow:
                 for s in conf.get("sources", []):
                     answer_parts.append(
                         f"• **{s['report_id']}** ({s['title']}): Valued at **{s['valuation_2024']}** ({s['cagr']}), "
-                        f"Scope: {s['scope']} [{s['citation']}]."
+                        f"APAC Share: **{s.get('apac_share', 'N/A')}**, Scope: {s['scope']} [{s['citation']}]."
                     )
                 answer_parts.append("")
 
-        elif passages:
-            # Report findings
+        if passages:
+            # Sort passages so that pages containing quantitative metrics (valuations, CAGRs) come first
+            def metric_priority(p):
+                score = 0
+                t = p.text.lower()
+                if "billion" in t or "usd" in t: score += 10
+                if "cagr" in t or "%" in t: score += 10
+                if "market size" in t or "valued at" in t or "reached" in t: score += 5
+                return score
+
+            sorted_passages = sorted(passages, key=metric_priority, reverse=True)
             seen_rids = set()
-            for p in passages:
+            for p in sorted_passages:
+                if state.get("conflicts") and p.report_id in ("R-101", "R-102"):
+                    continue
                 if p.report_id not in seen_rids:
                     seen_rids.add(p.report_id)
                     answer_parts.append(
                         f"• According to **{p.title}** [{p.report_id}, p.{p.page_number}]:\n  "
-                        f"{p.text[:220].strip()}..."
+                        f"{p.text.strip()}"
                     )
+
+
 
         # Build citations list
         seen_keys = set()

@@ -149,8 +149,9 @@ class SecureRAGService:
         target_page = int(page_match.group(1)) if page_match else None
 
         # Retrieve candidates from ChromaDB using strict where-clause filter
-        fetch_limit = min(max(top_k * 4, 30), 50)
+        fetch_limit = min(max(top_k * 12, 60), 100)
         raw_candidates = self.vector_store.query_similar(
+
             query_text=query,
             n_results=fetch_limit,
             allowed_report_ids=entitlement.accessible_reports
@@ -199,8 +200,28 @@ class SecureRAGService:
                 meta_boost += 0.4
             
             cand_report = str(meta.get("report_id", "")).lower()
-            if cand_report and cand_report in query.lower():
-                meta_boost += 0.2
+            q_clean = query.lower().replace("-", "")
+            if cand_report and (cand_report in query.lower() or cand_report.replace("-", "") in q_clean):
+                meta_boost += 0.6
+
+            # Boost if query matches report title keywords (e.g. battery, purifier, energy, healthcare)
+            title = str(meta.get("title", "")).lower()
+            title_keywords = [
+                w for w in re.findall(r'\b[a-zA-Z]{4,}\b', title) 
+                if w not in ("market", "global", "industry", "outlook", "2024", "2025")
+            ]
+            if any(kw in query.lower() for kw in title_keywords):
+                meta_boost += 0.5
+
+
+            # Metric presence boost: if query asks for numbers or growth, boost pages with actual values
+            t_lower = text_str.lower()
+            if any(k in query.lower() for k in ("size", "valuation", "worth", "reach", "billion")):
+                if "usd" in t_lower or "billion" in t_lower or "valued at" in t_lower or "reached" in t_lower:
+                    meta_boost += 0.4
+            if any(k in query.lower() for k in ("cagr", "growth", "forecast", "projection")):
+                if "cagr" in t_lower or "%" in t_lower:
+                    meta_boost += 0.4
 
             # Combined hybrid score (60% semantic, 40% lexical + metadata boost)
             final_score = (0.6 * semantic_score) + (0.4 * lexical_score) + meta_boost
@@ -214,7 +235,31 @@ class SecureRAGService:
 
         # Sort descending by hybrid score
         scored_candidates.sort(key=lambda x: x[0], reverse=True)
-        top_candidates = scored_candidates[:top_k]
+
+        # For comparison queries between specific reports, guarantee representation from each mentioned report
+        top_candidates = []
+        q_lower_comp = query.lower()
+        if any(w in q_lower_comp for w in ("compare", "trust", "versus", "vs", "between")):
+            mentioned_rids = [
+                r for r in entitlement.accessible_reports 
+                if r.lower() in q_lower_comp or r.lower().replace("-", "") in q_lower_comp.replace("-", "")
+            ]
+            if len(mentioned_rids) >= 2:
+                for m_rid in mentioned_rids:
+                    for sc, cand in scored_candidates:
+                        if cand.get("metadata", {}).get("report_id") == m_rid:
+                            top_candidates.append((sc, cand))
+                            break
+
+        # Fill remaining slots up to top_k
+        seen_cand_ids = {c["id"] for _, c in top_candidates}
+        for sc, cand in scored_candidates:
+            if cand["id"] not in seen_cand_ids:
+                top_candidates.append((sc, cand))
+                seen_cand_ids.add(cand["id"])
+            if len(top_candidates) >= top_k:
+                break
+
 
         # 6. Build structured SupportingPassage objects
         supporting_passages: List[SupportingPassage] = []

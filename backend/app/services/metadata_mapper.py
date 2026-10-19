@@ -39,6 +39,33 @@ FALLBACK_METADATA: Dict[str, Dict[str, Any]] = {
         "sector": "Consumer Durables",
         "access": "paid",
         "region": "Global"
+    },
+    "R-104": {
+        "id": "R-104",
+        "title": "EV Battery Recycling Market 2025",
+        "publisher": "CMR",
+        "publication_year": 2025,
+        "sector": "CleanTech",
+        "access": "paid",
+        "region": "Global, APAC"
+    },
+    "R-105": {
+        "id": "R-105",
+        "title": "Commercial Building Energy Management Systems Market 2024",
+        "publisher": "Aquila Insights (third party)",
+        "publication_year": 2024,
+        "sector": "Energy & Infrastructure",
+        "access": "public",
+        "region": "Global, North America"
+    },
+    "R-106": {
+        "id": "R-106",
+        "title": "Healthcare Generative AI Market 2025",
+        "publisher": "CMR",
+        "publication_year": 2025,
+        "sector": "Healthcare",
+        "access": "paid",
+        "region": "Global, North America"
     }
 }
 

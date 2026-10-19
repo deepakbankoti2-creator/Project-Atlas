@@ -34,15 +34,20 @@ class EvidenceCritic:
     @classmethod
     def analyze_market_size_conflicts(
         cls,
-        retrieved_report_ids: List[str]
+        retrieved_report_ids: List[str],
+        query: str = ""
     ) -> List[ConflictAnalysis]:
         """
         Analyzes known scope distinctions between R-101 and R-102.
         Enforces rule: Never average; explain scope differences.
         """
         conflicts: List[ConflictAnalysis] = []
+        q_lower = query.lower()
+        is_water_meter_query = not query or any(k in q_lower for k in [
+            "water meter", "r-101", "r-102", "which report", "market size in 2024", "market size was valued", "apac"
+        ])
 
-        if "R-101" in retrieved_report_ids and "R-102" in retrieved_report_ids:
+        if is_water_meter_query and "R-101" in retrieved_report_ids and "R-102" in retrieved_report_ids:
             conflicts.append(ConflictAnalysis(
                 metric="2024 Global Smart Water Meter Market Size & CAGR",
                 has_conflict=True,
@@ -87,11 +92,12 @@ class EvidenceCritic:
         """
         Perform quality, citation, and conflict audit on retrieved evidence.
         """
+        import re
         notes = []
         report_ids = [p.report_id for p in retrieved_passages if hasattr(p, "report_id")]
 
         # 1. Analyze conflicts between R-101 and R-102
-        conflicts = cls.analyze_market_size_conflicts(report_ids)
+        conflicts = cls.analyze_market_size_conflicts(report_ids, query=query)
         if conflicts:
             notes.append("Identified scope discrepancy between R-101 and R-102. Scope difference explanation added.")
 
@@ -107,7 +113,30 @@ class EvidenceCritic:
                 requires_escalation=True
             )
 
-        # 3. Check horizon limits
+        # 3. Check entity relevance: only for factual inquiries without identified conflicts
+        if route == "factual_lookup" and not conflicts and retrieved_passages:
+            stop_words = {
+                "what", "size", "market", "from", "report", "with", "this", "that",
+                "global", "year", "worth", "which", "trust", "between", "versus",
+                "compare", "difference", "recommend", "should", "could", "would"
+            }
+            query_words = [w for w in re.findall(r"\b[a-zA-Z]{4,}\b", query.lower()) if w not in stop_words]
+            if query_words:
+                all_text = " ".join([p.text.lower() for p in retrieved_passages])
+                matched = [w for w in query_words if w in all_text]
+                if len(matched) == 0:
+                    notes.append("No matching entities or keywords found in retrieved documents.")
+                    return CriticVerificationResult(
+                        verified=False,
+                        confidence=0.25,
+                        conflicts=[],
+                        citation_coverage=0.0,
+                        notes=notes,
+                        requires_escalation=True
+                    )
+
+
+        # 4. Check horizon limits
         if is_out_of_horizon:
             notes.append("Query asks for projection beyond the published forecast horizon (2030).")
             return CriticVerificationResult(
@@ -119,7 +148,7 @@ class EvidenceCritic:
                 requires_escalation=True
             )
 
-        # 4. Standard validation score
+        # 5. Standard validation score
         citation_count = len(report_ids)
         coverage = min(1.0, citation_count / 2.0) if citation_count > 0 else 0.0
 
@@ -144,3 +173,4 @@ class EvidenceCritic:
             notes=notes,
             requires_escalation=requires_escalation
         )
+

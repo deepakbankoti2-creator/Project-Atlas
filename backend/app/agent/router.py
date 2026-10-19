@@ -10,7 +10,7 @@ from backend.app.services.security import SecurityGuard
 
 logger = logging.getLogger(__name__)
 
-# Out of scope domain patterns (politics, sports, entertainment, general world trivia)
+# Out of scope domain patterns (politics, sports, entertainment, general coding, academic trivia)
 OUT_OF_SCOPE_PATTERNS = [
     r"who\s+will\s+win\s+(the\s+)?(election|presidency|match|cup)",
     r"election",
@@ -20,19 +20,26 @@ OUT_OF_SCOPE_PATTERNS = [
     r"football|cricket|nba|super\s*bowl",
     r"recipe|how\s+to\s+cook",
     r"capital\s+of\s+[a-z]+",
-    r"tell\s+me\s+a\s+joke"
+    r"tell\s+me\s+a\s+joke",
+    r"write\s+(a\s+)?(python|javascript|java|code|script|game)",
+    r"tic-?tac-?toe",
+    r"quantum\s+computing",
+    r"play\s+[a-z]+"
 ]
 
 # SQL Aggregate indicators
 SQL_AGGREGATE_PATTERNS = [
     r"which\s+sector\s+has\s+the\s+most\s+reports",
-    r"how\s+many\s+reports",
+    r"how\s+many\s+(total\s+)?reports",
     r"count\s+(of\s+)?reports",
     r"most\s+reports\s+in\s+your\s+library",
-    r"total\s+number\s+of\s+reports",
+    r"total\s+(number\s+of\s+)?reports",
     r"reports\s+per\s+sector",
-    r"publisher\s+with\s+the\s+most"
+    r"publisher\s+with\s+the\s+most",
+    r"published\s+by\s+.*versus",
+    r"reports\s+are\s+available"
 ]
+
 
 # Calculation / Projection indicators
 CALCULATION_PATTERNS = [

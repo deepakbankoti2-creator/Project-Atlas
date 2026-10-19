@@ -85,3 +85,44 @@ class EscalationTicket(Base):
 
     def __repr__(self):
         return f"<EscalationTicket(id={self.id}, client_id='{self.client_id}', status='{self.status}')>"
+
+
+class Conversation(Base):
+    """
+    Stores client interactions, questions, model answers, and metadata.
+    """
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    client_id = Column(String(10), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    citations_json = Column(Text, nullable=True)
+    confidence = Column(String(20), nullable=True)
+    conflicts_json = Column(Text, nullable=True)
+    derived_values_json = Column(Text, nullable=True)
+    escalated = Column(Integer, default=0, nullable=False)
+    escalation_ticket_id = Column(String(50), nullable=True)
+    route = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<Conversation(id={self.id}, client_id='{self.client_id}')>"
+
+
+class Feedback(Base):
+    """
+    Stores user thumbs-up / thumbs-down ratings and optional feedback comments.
+    """
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    conversation_id = Column(Integer, nullable=False, index=True)
+    client_id = Column(String(10), nullable=False)
+    rating = Column(String(10), nullable=False)  # 'up' or 'down'
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<Feedback(id={self.id}, conversation_id={self.conversation_id}, rating='{self.rating}')>"
+

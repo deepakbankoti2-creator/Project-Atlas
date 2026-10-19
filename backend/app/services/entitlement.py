@@ -33,20 +33,24 @@ SEED_CLIENTS: Dict[str, Dict[str, Any]] = {
     "C-01": {
         "company": "Northwind Utilities",
         "contact_email": "ops@example.com",
-        "purchased_reports": ["R-101", "R-103"]
+        "purchased_reports": ["R-101", "R-103", "R-104", "R-106"]
     },
     "C-02": {
         "company": "Blue Delta Infra",
         "contact_email": "procurement@example.com",
-        "purchased_reports": ["R-103"]
+        "purchased_reports": ["R-103", "R-106"]
     }
 }
 
 SEED_REPORTS: Dict[str, Dict[str, Any]] = {
     "R-101": {"title": "Global Smart Water Meter Market 2025", "access": "paid"},
     "R-102": {"title": "Smart Water Metering: Industry Outlook 2024", "access": "public"},
-    "R-103": {"title": "Residential Water Purifier Market", "access": "paid"}
+    "R-103": {"title": "Residential Water Purifier Market", "access": "paid"},
+    "R-104": {"title": "EV Battery Recycling Market 2025", "access": "paid"},
+    "R-105": {"title": "Commercial Building Energy Management Systems Market 2024", "access": "public"},
+    "R-106": {"title": "Healthcare Generative AI Market 2025", "access": "paid"}
 }
+
 
 
 class EntitlementService:

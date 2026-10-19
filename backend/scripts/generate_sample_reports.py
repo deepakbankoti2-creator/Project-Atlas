@@ -137,6 +137,127 @@ def generate_sample_reports(output_dir: str = "data/reports"):
     doc_103.close()
     print(f"[CREATED] {r103_path} (8 pages)")
 
+    # -------------------------------------------------------------
+    # 4. R-104: EV Battery Recycling Market 2025 (CMR)
+    # -------------------------------------------------------------
+    doc_104 = pymupdf.open()
+    for page_idx in range(8):
+        page = doc_104.new_page()
+        page_num = page_idx + 1
+        if page_num == 1:
+            page.insert_text(
+                (50, 72),
+                "Report: R-104\n"
+                "Title: EV Battery Recycling Market 2025\n"
+                "Publisher: Cognitive Market Research (CMR)\n"
+                "Published Date: February 14, 2025\n"
+                "Sector: CleanTech | Access: Paid\n\n"
+                "Executive Summary:\n"
+                "Comprehensive study of lithium-ion battery closed-loop recycling, hydrometallurgical\n"
+                "extraction, black mass processing, and regulatory circular economy mandates."
+            )
+        elif page_num == 5:
+            page.insert_text(
+                (50, 72),
+                "Chapter 3: Global Sizing and Projections\n\n"
+                "The global EV battery recycling market size was valued at USD 9.25 billion in 2024 "
+                "and is projected to expand at a CAGR of 21.4% from 2025 to 2032.\n\n"
+                "Asia-Pacific accounted for 52% of global recycling capacity in 2024, "
+                "led by high battery cell manufacturing output in China, South Korea, and Japan."
+            )
+        else:
+            page.insert_text(
+                (50, 72),
+                f"Page {page_num} of R-104: Supply Chain Dynamics & Feedstock Availability.\n"
+                "Detailed breakdown of end-of-life battery collection networks and OEM partnerships."
+            )
+
+    r104_path = out_path / "R-104.pdf"
+    doc_104.save(str(r104_path))
+    doc_104.close()
+    print(f"[CREATED] {r104_path} (8 pages)")
+
+    # -------------------------------------------------------------
+    # 5. R-105: Commercial Building Energy Management Systems Market 2024 (Aquila Insights)
+    # -------------------------------------------------------------
+    doc_105 = pymupdf.open()
+    for page_idx in range(10):
+        page = doc_105.new_page()
+        page_num = page_idx + 1
+        if page_num == 1:
+            page.insert_text(
+                (50, 72),
+                "Report: R-105\n"
+                "Title: Commercial Building Energy Management Systems Market 2024\n"
+                "Publisher: Aquila Insights (third party)\n"
+                "Published Date: August 11, 2024\n"
+                "Sector: Energy & Infrastructure | Access: Public Excerpt\n\n"
+                "Scope Notice:\n"
+                "Covers automated HVAC controls, smart lighting sensors, and enterprise energy analytics."
+            )
+        elif page_num == 4:
+            page.insert_text(
+                (50, 72),
+                "Market Overview:\n\n"
+                "The global commercial building energy management systems (BEMS) market was valued "
+                "at USD 6.80 billion in 2024 with an estimated CAGR of 12.5% through 2030.\n\n"
+                "North America commands a 44% market share due to aggressive corporate ESG targets "
+                "and federal energy efficiency standards."
+            )
+        else:
+            page.insert_text(
+                (50, 72),
+                f"Page {page_num} of R-105: IoT Sensor Integration and Cloud Analytics Platforms.\n"
+                "Real-time fault detection and smart metering telemetry reduce HVAC energy consumption."
+            )
+
+    r105_path = out_path / "R-105.pdf"
+    doc_105.save(str(r105_path))
+    doc_105.close()
+    print(f"[CREATED] {r105_path} (10 pages)")
+
+    # -------------------------------------------------------------
+    # 6. R-106: Healthcare Generative AI Market 2025 (CMR)
+    # -------------------------------------------------------------
+    doc_106 = pymupdf.open()
+    for page_idx in range(10):
+        page = doc_106.new_page()
+        page_num = page_idx + 1
+        if page_num == 1:
+            page.insert_text(
+                (50, 72),
+                "Report: R-106\n"
+                "Title: Healthcare Generative AI Market 2025\n"
+                "Publisher: Cognitive Market Research (CMR)\n"
+                "Published Date: January 15, 2025\n"
+                "Sector: Healthcare | Access: Paid\n\n"
+                "Executive Summary:\n"
+                "Analysis of generative AI applications across clinical documentation, medical imaging,\n"
+                "synthetic patient data generation, and drug discovery research."
+            )
+        elif page_num == 6:
+            page.insert_text(
+                (50, 72),
+                "Section 4: Market Sizing and Growth Horizons\n\n"
+                "The global healthcare generative AI market size stood at USD 2.15 billion in 2024\n"
+                "and is forecasted to accelerate at a CAGR of 34.8% from 2025 to 2031.\n\n"
+                "North America represents 48% of global market revenue owing to rapid adoption\n"
+                "of ambient clinical listening tools by major hospital networks."
+            )
+
+        else:
+            page.insert_text(
+                (50, 72),
+                f"Page {page_num} of R-106: HIPAA Compliance, Regulatory Approvals, and Vendor Ecosystem.\n"
+                "Evaluation of LLM safety guardrails and electronic health record (EHR) integrations."
+            )
+
+    r106_path = out_path / "R-106.pdf"
+    doc_106.save(str(r106_path))
+    doc_106.close()
+    print(f"[CREATED] {r106_path} (10 pages)")
+
 
 if __name__ == "__main__":
     generate_sample_reports()
+

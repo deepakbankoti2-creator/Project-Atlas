@@ -133,14 +133,26 @@ def secure_retrieve(request: RAGQueryRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Retrieval error: {str(e)}")
 
 
+class FeedbackRequest(BaseModel):
+    conversation_id: int
+    client_id: str
+    rating: str = Field(..., description="'up' or 'down'")
+    comment: Optional[str] = None
+
+
+OFFLINE_CONVERSATIONS: List[Dict[str, Any]] = []
+OFFLINE_FEEDBACK: List[Dict[str, Any]] = []
+
+
 @router.post("/chat", response_model=WorkflowOutput)
-def agent_chat(request: RAGQueryRequest):
+def agent_chat(request: RAGQueryRequest, db: Session = Depends(get_db)):
     """
     Execute Project Atlas LangGraph agent workflow.
     Routes to SQL, Python calculator, entitlement-checked retrieval, or safety refusal.
+    Stores the conversation in MySQL (or in-memory fallback).
     """
     try:
-        return agent_workflow.run(
+        output = agent_workflow.run(
             client_id=request.client_id,
             query=request.question
         )
@@ -148,6 +160,112 @@ def agent_chat(request: RAGQueryRequest):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}")
+
+    import json
+    from datetime import datetime
+    citations_data = [c.model_dump() if hasattr(c, "model_dump") else dict(c) for c in output.citations]
+    conv_id = None
+    try:
+        conv_record = Conversation(
+            client_id=request.client_id,
+            question=request.question,
+            answer=output.answer,
+            citations_json=json.dumps(citations_data),
+            confidence=str(output.confidence),
+            conflicts_json=json.dumps(output.conflicts),
+            derived_values_json=json.dumps(output.derived_values),
+            escalated=1 if output.escalated else 0,
+            escalation_ticket_id=output.escalation_ticket_id,
+            route=output.route,
+            created_at=datetime.utcnow()
+        )
+        db.add(conv_record)
+        db.commit()
+        db.refresh(conv_record)
+        conv_id = conv_record.id
+    except Exception:
+        db.rollback()
+        conv_id = len(OFFLINE_CONVERSATIONS) + 1
+        OFFLINE_CONVERSATIONS.append({
+            "id": conv_id,
+            "client_id": request.client_id,
+            "question": request.question,
+            "answer": output.answer,
+            "citations": citations_data,
+            "confidence": output.confidence,
+            "conflicts": output.conflicts,
+            "derived_values": output.derived_values,
+            "escalated": output.escalated,
+            "escalation_ticket_id": output.escalation_ticket_id,
+            "route": output.route,
+            "created_at": str(datetime.utcnow())
+        })
+
+    output.conversation_id = conv_id
+    return output
+
+
+@router.post("/feedback")
+def submit_feedback(request: FeedbackRequest, db: Session = Depends(get_db)):
+    """
+    Store thumbs-up or thumbs-down feedback for a conversation.
+    """
+    from datetime import datetime
+    if request.rating not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Rating must be 'up' or 'down'.")
+
+    try:
+        fb_record = Feedback(
+            conversation_id=request.conversation_id,
+            client_id=request.client_id,
+            rating=request.rating,
+            comment=request.comment,
+            created_at=datetime.utcnow()
+        )
+        db.add(fb_record)
+        db.commit()
+        db.refresh(fb_record)
+        return {"status": "success", "feedback_id": fb_record.id, "rating": fb_record.rating}
+    except Exception:
+        db.rollback()
+        fb_id = len(OFFLINE_FEEDBACK) + 1
+        OFFLINE_FEEDBACK.append({
+            "id": fb_id,
+            "conversation_id": request.conversation_id,
+            "client_id": request.client_id,
+            "rating": request.rating,
+            "comment": request.comment,
+            "created_at": str(datetime.utcnow())
+        })
+        return {"status": "success", "feedback_id": fb_id, "rating": request.rating, "storage": "in-memory"}
+
+
+@router.get("/conversations")
+def list_conversations(client_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """Retrieve history of conversations, optionally filtered by client_id."""
+    try:
+        query = db.query(Conversation)
+        if client_id:
+            query = query.filter(Conversation.client_id == client_id)
+        records = query.order_by(Conversation.id.desc()).limit(50).all()
+        return [
+            {
+                "id": r.id,
+                "client_id": r.client_id,
+                "question": r.question,
+                "answer": r.answer,
+                "confidence": r.confidence,
+                "escalated": bool(r.escalated),
+                "escalation_ticket_id": r.escalation_ticket_id,
+                "route": r.route,
+                "created_at": str(r.created_at)
+            }
+            for r in records
+        ]
+    except Exception:
+        if client_id:
+            return [c for c in OFFLINE_CONVERSATIONS if c["client_id"] == client_id]
+        return OFFLINE_CONVERSATIONS
 
 
 @router.get("/escalations")
@@ -169,3 +287,4 @@ def list_escalations(db: Session = Depends(get_db)):
     except Exception:
         # Fallback to in-memory tickets if DB offline
         return list(OFFLINE_TICKETS.values())
+

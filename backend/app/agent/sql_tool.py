@@ -16,10 +16,19 @@ logger = logging.getLogger(__name__)
 # Fallback catalog data if MySQL server connection is offline
 FALLBACK_SECTOR_COUNTS = [
     {"sector": "Utilities", "report_count": 2},
+    {"sector": "CleanTech", "report_count": 1},
+    {"sector": "Energy & Infrastructure", "report_count": 1},
+    {"sector": "Healthcare", "report_count": 1},
     {"sector": "Consumer Durables", "report_count": 1}
 ]
 
-FALLBACK_TOTAL_REPORTS = [{"total_reports": 3}]
+FALLBACK_TOTAL_REPORTS = [{"total_reports": 6}]
+
+FALLBACK_PUBLISHER_COUNTS = [
+    {"publisher": "CMR", "report_count": 4},
+    {"publisher": "Aquila Insights (third party)", "report_count": 2}
+]
+
 
 
 class SQLSecurityError(Exception):
@@ -108,6 +117,8 @@ class ReadOnlySQLTool:
             # Fallback
             if template_name == "sector_counts":
                 rows = FALLBACK_SECTOR_COUNTS
+            elif template_name == "publisher_counts":
+                rows = FALLBACK_PUBLISHER_COUNTS
             else:
                 rows = FALLBACK_TOTAL_REPORTS
 
@@ -130,8 +141,9 @@ class ReadOnlySQLTool:
         q_lower = natural_query.lower()
         if "sector" in q_lower:
             template = "sector_counts"
-        elif "publisher" in q_lower:
+        elif "publisher" in q_lower or "publish" in q_lower:
             template = "publisher_counts"
+
         elif "access" in q_lower or "paid" in q_lower:
             template = "access_breakdown"
         else:
@@ -144,10 +156,21 @@ class ReadOnlySQLTool:
             top = res["rows"][0]
             summary = (
                 f"The sector with the most reports is **{top['sector']}** with **{top['report_count']} reports**.\n"
-                f"Full breakdown: " + ", ".join([f"{r['sector']} ({r['report_count']})" for r in res["rows"]]) + "."
+                f"Full breakdown by sector: " + ", ".join([f"{r['sector']} ({r['report_count']})" for r in res["rows"]]) + ".\n"
+                f"Executed query template: `{template}` (`reports_by_sector`)."
+            )
+        elif template == "publisher_counts":
+            summary = (
+                f"Reports published by organization: " + ", ".join([f"{r['publisher']}: {r['report_count']}" for r in res["rows"]]) + ".\n"
+                f"Executed query template: `{template}` (`reports_by_publisher`)."
             )
         else:
-            summary = f"Total reports in repository: {res['rows'][0].get('total_reports', len(res['rows']))}."
+            cnt = res['rows'][0].get('total_reports', len(res['rows']))
+            summary = (
+                f"Total reports available in repository catalog: **{cnt}**.\n"
+                f"Executed query template: `{template}` (`total_reports_count`)."
+            )
 
         res["summary"] = summary
         return res
+
