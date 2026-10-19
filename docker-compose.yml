@@ -51,6 +51,9 @@ services:
       CHROMA_PERSIST_DIR: /app/data/chroma_db
       CHROMA_COLLECTION_NAME: atlas_reports
       REPORTS_DIR: /app/data/reports
+      ATLAS_API_KEY: atlas_secret_token_2025
+      ADMIN_API_KEY: atlas_admin_secret_key_2025
+      OLLAMA_TIMEOUT_SECONDS: 10.0
     ports:
       - "8000:8000"
     volumes:
@@ -75,6 +78,7 @@ services:
     environment:
       ATLAS_API_URL: http://fastapi:8000
       ATLAS_API_TIMEOUT: 30
+      ATLAS_API_KEY: atlas_secret_token_2025
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: project_atlas

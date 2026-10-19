@@ -1,8 +1,9 @@
 # Project Atlas — AI Report Copilot & Multi-Agent Intelligence Engine
 **Cognitive Market Research and Consulting | Viman Nagar, Pune**
 
-[![Tests](https://img.shields.io/badge/pytest-21%2F21%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/pytest-40%2F40%20passing-brightgreen.svg)]()
 [![Evaluation](https://img.shields.io/badge/evaluation-27%2F27%20passed%20(100%25)-success.svg)]()
+[![CI3 Integration](https://img.shields.io/badge/CI3%20Integration-6%2F6%20passed-blue.svg)]()
 [![Docker](https://img.shields.io/badge/docker--compose-ready-blue.svg)]()
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-blue.svg)]()
 [![PHP](https://img.shields.io/badge/PHP-8.2%20(CodeIgniter%203)-red.svg)]()
@@ -195,22 +196,27 @@ python backend/scripts/generate_sample_reports.py
 python backend/scripts/ingest_reports.py
 ```
 
-### 3. Run Pytest Suite (21 Unit Tests)
+### 3. Run Pytest Suite (40 Unit Tests)
 ```bash
 pytest tests/ -v
 ```
 
-### 4. Run Evaluation Benchmark (27 Test Cases)
+### 4. Run CodeIgniter 3 Integration Tests (6 Test Suites)
+```bash
+python backend/scripts/test_ci3_integration.py
+```
+
+### 5. Run Evaluation Benchmark (27 Test Cases)
 ```bash
 python backend/scripts/run_evaluation.py
 ```
 
-### 5. Run CLI Interactive Workflow Demo
+### 6. Run CLI Interactive Workflow Demo
 ```bash
 python backend/scripts/demo_agent_workflow.py
 ```
 
-### 6. Start FastAPI Backend & CodeIgniter 3
+### 7. Start FastAPI Backend & CodeIgniter 3
 ```bash
 # Terminal 1: FastAPI Backend
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
