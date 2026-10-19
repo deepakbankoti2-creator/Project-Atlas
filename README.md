@@ -37,19 +37,25 @@ Project-Atlas/
 │   │   │   ├── __init__.py
 │   │   │   ├── embedding.py  # Local Ollama nomic-embed-text integration & fallback
 │   │   │   ├── metadata_mapper.py # MySQL-to-report metadata mapper
-│   │   │   └── ingestion.py  # Report ingestion service orchestrator
+│   │   │   ├── ingestion.py  # Report ingestion service orchestrator
+│   │   │   ├── entitlement.py # Pre-retrieval client entitlement enforcement
+│   │   │   ├── security.py   # Prompt injection detection & untrusted context framing
+│   │   │   ├── retrieval.py  # Secure RAG hybrid search & supporting passage builder
+│   │   │   └── rag_generator.py # Cited RAG answer generator with Ollama/fallback
 │   │   └── api/
 │   │       ├── __init__.py
 │   │       └── v1/
 │   │           ├── __init__.py
-│   │           └── endpoints.py # REST endpoints (db-status, reports, clients, ingest, search)
+│   │           └── endpoints.py # REST endpoints (db-status, reports, clients, ingest, retrieve, chat)
 │   └── scripts/
 │       ├── __init__.py
 │       ├── test_db.py        # Database connection & table inspection test script
 │       ├── generate_sample_reports.py # Generates test PDF reports matching assignment spec
-│       └── ingest_reports.py # CLI ingestion script with summary stats and deduplication
+│       ├── ingest_reports.py # CLI ingestion script with summary stats and deduplication
+│       └── test_rag_pipeline.py # Interactive verification of entitlement & injection defense
 └── tests/
-    └── test_ingestion.py     # Comprehensive unit tests for pipeline components
+    ├── test_ingestion.py     # Unit tests for extraction, chunking, and Chroma persistence
+    └── test_rag.py           # Unit tests for entitlement boundaries, injection, & citations
 ```
 
 ---
@@ -107,28 +113,6 @@ Copy `.env.example` to `.env` and fill in your actual credentials:
 cp .env.example .env
 ```
 
-`.env` entries:
-```env
-# Database Credentials
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=project_atlas
-DB_USER=root
-DB_PASSWORD=your_actual_mysql_password
-
-# Ollama LLM & Embeddings
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=llama3.2:3b
-OLLAMA_EMBED_MODEL=nomic-embed-text
-
-# ChromaDB & Ingestion
-CHROMA_PERSIST_DIR=data/chroma_db
-CHROMA_COLLECTION_NAME=atlas_reports
-REPORTS_DIR=data/reports
-CHUNK_SIZE=600
-CHUNK_OVERLAP=100
-```
-
 ---
 
 ## 4. Database Connection Verification (Step 1)
@@ -138,63 +122,66 @@ Run the verification script:
 python backend/scripts/test_db.py
 ```
 
-The script connects to the configured MySQL instance, inspects tables and row counts, and verifies schema readiness without exposing credentials or executing destructive commands.
-
 ---
 
 ## 5. Report Ingestion and Vector Storage Pipeline (Step 2)
 
-### Where to Place PDF Reports
-Place your PDF files in the directory configured by `REPORTS_DIR` (default: `data/reports/`).
-The ingestion pipeline automatically matches files named after the report ID (e.g. `R-101.pdf`, `R-102.pdf`, `R-103.pdf`) or containing the report ID in the file name.
-
-To generate synthetic test PDFs matching the assignment's Appendix A:
+### Generate Seed PDF Documents
 ```bash
 python backend/scripts/generate_sample_reports.py
 ```
 
-### Running the CLI Ingestion Command
-To ingest all available reports:
+### Ingest Reports via CLI
 ```bash
 python backend/scripts/ingest_reports.py
 ```
 
-Optional CLI flags:
-* Ingest a specific report:
-  ```bash
-  python backend/scripts/ingest_reports.py --report-id R-101
-  ```
-* Ingest from a custom directory:
-  ```bash
-  python backend/scripts/ingest_reports.py --reports-dir path/to/my_reports
-  ```
-* Force purge and re-index:
-  ```bash
-  python backend/scripts/ingest_reports.py --force-reindex
-  ```
-
-### Deduplication Guarantee
-Chunks are stored using deterministic IDs: `{report_id}_p{page_number}_c{chunk_index}` (e.g., `R-101_p8_c0`). Re-running ingestion performs an idempotent upsert, guaranteeing that no duplicate chunks are created in ChromaDB.
+Chunks are stored with stable IDs: `{report_id}_p{page_number}_c{chunk_index}`, guaranteeing **zero duplicate chunks** on repeated runs.
 
 ---
 
-## 6. Running Unit Tests
+## 6. Secure Retrieval-Augmented Generation (Step 3)
 
-Run the test suite with pytest:
+### How Entitlement is Enforced (Pre-Retrieval)
+1. **Pre-LLM Authorization Check**: The `EntitlementService` validates the client ID and queries MySQL for purchased reports.
+   * `C-01`: Purchased `R-101`, `R-103` + Public `R-102`.
+   * `C-02`: Purchased `R-103` + Public `R-102`. Restricted: `R-101`.
+2. **Hard Vector Query Filter**: ChromaDB is queried with `where={"report_id": {"$in": accessible_reports}}`. **Protected chunks are never retrieved into memory and never sent to the LLM.**
+3. **Restricted Report Upgrade Offer**: If an unauthorized client targets a paid report they have not bought, an upgrade notice is generated, and zero protected figures are disclosed.
+4. **Prompt Injection Defense**: Retrieved text is tagged inside `<untrusted_source_document>` tags. Injections (such as R-102 page 14's command to print client emails) are neutralized and logged.
+5. **Hybrid Search**: Combines semantic vector similarity with exact keyword and page/report metadata boosting.
+
+### Running Interactive RAG Pipeline Verification
 ```bash
-pytest tests/test_ingestion.py -v
+python backend/scripts/test_rag_pipeline.py
+```
+
+---
+
+## 7. Running Unit Tests
+
+Run the complete test suite (12 tests):
+```bash
+pytest tests/ -v
 ```
 
 Verified test coverage:
-1. `test_pdf_extraction`: Validates PyMuPDF extracts text page by page with exact page numbers.
-2. `test_missing_pdf_handling`: Validates safe error handling when a PDF is not found.
-3. `test_chunking_and_metadata_preservation`: Confirms report ID, sector, region, publication year, access, and page number are retained in all chunks.
-4. `test_deduplication_in_vector_store`: Proves re-ingesting the same chunks results in identical chunk count without duplicates.
-5. `test_ingestion_service_skips_missing_safely`: Proves the service logs warnings and skips unreadable/missing files without crashing.
+* `test_pdf_extraction`: Validates PyMuPDF extracts text page by page.
+* `test_missing_pdf_handling`: Validates safe error handling on missing files.
+* `test_chunking_and_metadata_preservation`: Confirms metadata retention across chunks.
+* `test_deduplication_in_vector_store`: Validates idempotent ChromaDB upserts.
+* `test_ingestion_service_skips_missing_safely`: Proves graceful file skipping.
+* `test_client_entitlements_resolution`: Validates client authorization boundaries.
+* `test_unknown_client_rejected`: Rejects unauthorized client IDs.
+* `test_c01_can_retrieve_r101_market_size`: C-01 retrieves USD 4.21 B from R-101.
+* `test_c02_cannot_retrieve_r101_figures`: C-02 receives 0 chunks from R-101 and an upgrade notice.
+* `test_injection_trap_treated_as_data`: R-102 p.14 trap is neutralized; no client emails leaked.
+* `test_empty_or_unmatched_query_handling`: Unknown query returns safe limitations without fabrication.
+* `test_supporting_passages_have_complete_citations`: Every passage contains report ID, title, and page number.
 
 ---
 
-## 7. Running the FastAPI Backend Server
+## 8. Running the FastAPI Backend Server
 
 Start the development server with Uvicorn:
 ```bash
@@ -202,9 +189,24 @@ uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Available endpoints:
-* **Interactive Swagger UI**: `http://127.0.0.1:8000/docs`
+* **Swagger UI**: `http://127.0.0.1:8000/docs`
 * **Health Check**: `GET /health`
 * **Database Status**: `GET /api/v1/db-status`
 * **Trigger Ingestion**: `POST /api/v1/ingest`
 * **Vector Store Stats**: `GET /api/v1/vector-status`
-* **Semantic Search & Entitlements**: `GET /api/v1/search?q=smart%20water%20meter&client_id=C-01`
+* **Secure Retrieval**: `POST /api/v1/retrieve`
+  ```json
+  {
+    "client_id": "C-01",
+    "question": "What is the global smart water meter market size in 2024?",
+    "top_k": 5
+  }
+  ```
+* **RAG Chat**: `POST /api/v1/chat`
+  ```json
+  {
+    "client_id": "C-02",
+    "question": "What is the 2024 global market size in R-101?",
+    "top_k": 5
+  }
+  ```

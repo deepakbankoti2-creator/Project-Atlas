@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
 from typing import List, Dict, Any, Optional
@@ -8,6 +8,9 @@ from backend.app.core.database import get_db, engine
 from backend.app.models.schema import Report, MarketMetric, Client
 from backend.app.core.vector_store import vector_store
 from backend.app.services.ingestion import IngestionService
+from backend.app.services.retrieval import rag_service, RetrievalResponse
+from backend.app.services.rag_generator import rag_generator, RAGAnswerResponse
+from backend.app.services.entitlement import ClientNotFoundError
 
 router = APIRouter()
 
@@ -15,6 +18,12 @@ router = APIRouter()
 class IngestRequest(BaseModel):
     report_id: Optional[str] = None
     force_reindex: bool = False
+
+
+class RAGQueryRequest(BaseModel):
+    client_id: str = Field(..., description="Client ID e.g. C-01, C-02")
+    question: str = Field(..., description="User natural language question")
+    top_k: int = Field(5, ge=1, le=20, description="Max passages to retrieve")
 
 
 @router.get("/db-status")
@@ -104,31 +113,39 @@ def get_vector_status():
     return vector_store.get_stats()
 
 
-@router.get("/search")
-def search_vectors(
-    q: str = Query(..., description="Query string for semantic search"),
-    client_id: Optional[str] = Query(None, description="Optional client ID to filter by entitlements"),
-    limit: int = Query(5, ge=1, le=20),
-    db: Session = Depends(get_db)
-):
-    """Semantic search with optional client entitlement filtering."""
-    allowed_reports = None
-    if client_id:
-        client = db.query(Client).filter(Client.id == client_id).first()
-        if client:
-            allowed_reports = [r.strip() for r in client.purchased_reports.split(",") if r.strip()]
-        else:
-            raise HTTPException(status_code=404, detail=f"Client '{client_id}' not found.")
+@router.post("/retrieve", response_model=RetrievalResponse)
+def secure_retrieve(request: RAGQueryRequest, db: Session = Depends(get_db)):
+    """
+    Execute entitlement-enforced retrieval.
+    Pre-filters ChromaDB by client access before any text is returned.
+    """
+    try:
+        return rag_service.retrieve(
+            client_id=request.client_id,
+            query=request.question,
+            top_k=request.top_k,
+            db=db
+        )
+    except ClientNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Retrieval error: {str(e)}")
 
-    results = vector_store.query_similar(
-        query_text=q,
-        n_results=limit,
-        allowed_report_ids=allowed_reports
-    )
-    return {
-        "query": q,
-        "client_id": client_id,
-        "allowed_reports": allowed_reports,
-        "results_count": len(results),
-        "results": results
-    }
+
+@router.post("/chat", response_model=RAGAnswerResponse)
+def rag_chat(request: RAGQueryRequest, db: Session = Depends(get_db)):
+    """
+    End-to-end RAG chat pipeline.
+    Enforces entitlements, sanitizes context, and generates cited answer.
+    """
+    try:
+        return rag_generator.generate_answer(
+            client_id=request.client_id,
+            query=request.question,
+            top_k=request.top_k,
+            db=db
+        )
+    except ClientNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat generation error: {str(e)}")
