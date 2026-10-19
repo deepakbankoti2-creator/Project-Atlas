@@ -31,6 +31,9 @@ wheels/
 .venv/
 backend/venv/
 
+# ChromaDB local vector persistence
+data/chroma_db/
+
 # IDE & Editor files
 .vscode/
 .idea/
