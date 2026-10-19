@@ -47,7 +47,15 @@ class Chat extends CI_Controller {
             return $this->_json_response(array('error' => 'Method not allowed'), 405);
         }
 
-        $client_id = $this->input->post('client_id', TRUE) ?: ($this->session->userdata('active_client_id') ?: 'C-01');
+        // Security Requirement 9: Do not trust a client ID submitted by the browser as proof of authorization.
+        // Validate the authenticated user's permitted client identity strictly from server-side session context.
+        $session_client_id = $this->session->userdata('active_client_id') ?: 'C-01';
+        $allowed_clients   = array('C-01', 'C-02');
+        if (!in_array($session_client_id, $allowed_clients)) {
+            $session_client_id = 'C-01';
+            $this->session->set_userdata('active_client_id', 'C-01');
+        }
+        $client_id = $session_client_id;
         $question  = $this->input->post('question', TRUE);
 
         if (empty(trim($question))) {

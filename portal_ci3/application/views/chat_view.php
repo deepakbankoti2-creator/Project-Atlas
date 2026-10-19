@@ -459,9 +459,12 @@ function renderBotMessage(data, originalQuestion) {
         contentHtml += `<div class="derived-box"><strong><i class="fa-solid fa-calculator me-1"></i> Deterministic Computation Details:</strong><ul class="mb-0 mt-1 ps-3">`;
         data.derived_values.forEach(d => {
             if (typeof d === 'object') {
-                const formula = d.formula ? `<strong>Formula:</strong> ${escapeHtml(d.formula)}<br>` : '';
-                const interp = d.interpretation ? `<strong>Output:</strong> ${escapeHtml(d.interpretation)}` : '';
-                contentHtml += `<li class="mt-1">${formula}${interp}</li>`;
+                const metric = d.metric_name ? `<strong>Metric:</strong> ${escapeHtml(d.metric_name)}<br>` : '';
+                const formula = d.formula ? `<strong>Formula:</strong> <code>${escapeHtml(d.formula)}</code><br>` : '';
+                const baseVal = d.base_value_str ? `<strong>Base:</strong> ${escapeHtml(d.base_value_str)} | ` : '';
+                const cagrVal = d.cagr_str ? `<strong>CAGR:</strong> ${escapeHtml(d.cagr_str)}<br>` : '';
+                const resVal = (d.result_primary || d.computed_value_str || d.interpretation) ? `<strong>Computed Valuation:</strong> <span class="badge bg-success">${escapeHtml(d.result_primary || d.computed_value_str || d.interpretation)}</span>` : '';
+                contentHtml += `<li class="mt-2">${metric}${formula}${baseVal}${cagrVal}${resVal}</li>`;
             } else {
                 contentHtml += `<li>${escapeHtml(d)}</li>`;
             }
@@ -494,15 +497,18 @@ function renderBotMessage(data, originalQuestion) {
                         <div class="accordion-body p-2">
         `;
         data.citations.forEach((cit, idx) => {
+            const pageNum = cit.page || cit.page_number || 'N/A';
+            const quoteText = cit.quote || cit.snippet || cit.source_text || '';
             contentHtml += `
                 <div class="citation-badge">
-                    <div class="d-flex justify-content-between">
-                        <strong>[${idx + 1}] ${escapeHtml(cit.report_id)}: ${escapeHtml(cit.title)}</strong>
-                        <span class="badge bg-secondary">Page ${escapeHtml(cit.page_number)}</span>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>[${idx + 1}] ${escapeHtml(cit.report_id || '')}: ${escapeHtml(cit.title || '')}</strong>
+                        <span class="badge bg-primary">Page ${escapeHtml(pageNum)}</span>
                     </div>
-                    <div class="text-muted small mt-1 font-monospace" style="background:#ffffff; padding:6px; border-radius:4px; border:1px solid #e2e8f0;">
-                        ${escapeHtml(cit.snippet || cit.source_text || '')}
-                    </div>
+                    ${quoteText ? `
+                    <div class="text-muted small mt-1 font-monospace" style="background:#ffffff; padding:8px; border-radius:4px; border:1px solid #e2e8f0;">
+                        "${escapeHtml(quoteText)}"
+                    </div>` : ''}
                 </div>
             `;
         });
