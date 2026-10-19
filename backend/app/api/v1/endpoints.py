@@ -5,11 +5,12 @@ from sqlalchemy import text, inspect
 from typing import List, Dict, Any, Optional
 
 from backend.app.core.database import get_db, engine
-from backend.app.models.schema import Report, MarketMetric, Client
+from backend.app.models.schema import Report, MarketMetric, Client, EscalationTicket
 from backend.app.core.vector_store import vector_store
 from backend.app.services.ingestion import IngestionService
 from backend.app.services.retrieval import rag_service, RetrievalResponse
-from backend.app.services.rag_generator import rag_generator, RAGAnswerResponse
+from backend.app.agent.workflow import agent_workflow, WorkflowOutput
+from backend.app.agent.escalation import OFFLINE_TICKETS
 from backend.app.services.entitlement import ClientNotFoundError
 
 router = APIRouter()
@@ -132,20 +133,39 @@ def secure_retrieve(request: RAGQueryRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Retrieval error: {str(e)}")
 
 
-@router.post("/chat", response_model=RAGAnswerResponse)
-def rag_chat(request: RAGQueryRequest, db: Session = Depends(get_db)):
+@router.post("/chat", response_model=WorkflowOutput)
+def agent_chat(request: RAGQueryRequest):
     """
-    End-to-end RAG chat pipeline.
-    Enforces entitlements, sanitizes context, and generates cited answer.
+    Execute Project Atlas LangGraph agent workflow.
+    Routes to SQL, Python calculator, entitlement-checked retrieval, or safety refusal.
     """
     try:
-        return rag_generator.generate_answer(
+        return agent_workflow.run(
             client_id=request.client_id,
-            query=request.question,
-            top_k=request.top_k,
-            db=db
+            query=request.question
         )
     except ClientNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}")
+
+
+@router.get("/escalations")
+def list_escalations(db: Session = Depends(get_db)):
+    """Retrieve all human-analyst review escalation tickets."""
+    try:
+        tickets = db.query(EscalationTicket).order_by(EscalationTicket.id.desc()).all()
+        return [
+            {
+                "ticket_id": f"ESC-{t.id:04d}",
+                "client_id": t.client_id,
+                "query": t.query,
+                "reason": t.reason,
+                "status": t.status,
+                "created_at": str(t.created_at)
+            }
+            for t in tickets
+        ]
+    except Exception:
+        # Fallback to in-memory tickets if DB offline
+        return list(OFFLINE_TICKETS.values())

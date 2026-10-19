@@ -1,5 +1,6 @@
 import enum
-from sqlalchemy import Column, String, Integer, Date, Enum, ForeignKey, Text
+from datetime import datetime
+from sqlalchemy import Column, String, Integer, Date, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from backend.app.core.database import Base
 
@@ -66,3 +67,21 @@ class Client(Base):
 
     def __repr__(self):
         return f"<Client(id='{self.id}', company='{self.company}', email='{self.contact_email}')>"
+
+
+class EscalationTicket(Base):
+    """
+    Application escalations table in project_atlas database.
+    Stores human-analyst review requests and low-confidence question handoffs.
+    """
+    __tablename__ = "escalations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    client_id = Column(String(10), nullable=False, index=True)
+    query = Column(Text, nullable=False)
+    reason = Column(String(255), nullable=False)
+    status = Column(String(20), default="open", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<EscalationTicket(id={self.id}, client_id='{self.client_id}', status='{self.status}')>"
